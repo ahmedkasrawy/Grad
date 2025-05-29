@@ -13,6 +13,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_reactive_ble: ^5.0.2
 
 
 
@@ -23,19 +24,21 @@ dependencies:
   flutter_blue_plus: ^1.4.0
   shared_preferences: ^2.3.2
   mailer: ^6.2.0
-  firebase_core: ^3.10.1
-  cloud_firestore: ^5.5.0
-  firebase_storage: ^12.3.6
-  firebase_messaging: ^15.1.5
-  firebase_auth: ^5.3.3
-  google_sign_in: ^6.2.2
-  fluttertoast: ^8.2.12
+  firebase_core: ^2.24.2
+  cloud_firestore: ^4.14.0
+  firebase_storage: ^11.6.0
+  firebase_messaging: ^14.7.10
+  firebase_auth: ^4.16.0
+  google_sign_in: ^6.2.1
+  fluttertoast: ^8.2.4
+  tflite_flutter: ^0.11.0
 
 
-  get : ^4.6.5
-  permission_handler:
-  url_launcher: ^6.3.1
+  get: ^4.6.6
+  permission_handler: ^11.2.0
+  url_launcher: ^6.2.4
 
+  http: ^1.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

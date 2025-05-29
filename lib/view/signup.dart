@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:grad/userinfo/basicDetails.dart';
 import 'package:grad/view/login_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'home_screen.dart';
 
 class Signup extends StatefulWidget {
   const Signup({super.key});
@@ -32,18 +32,26 @@ class _SignUpState extends State<Signup> {
     setState(() => isLoading = true);
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // Create user with Firebase Auth
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      await CacheHelper.setData(key: 'username', value: username);
-      await CacheHelper.setData(key: 'email', value: email);
-      await CacheHelper.setData(key: 'password', value: password);
+      // Save user info to Firestore
+      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        'username': username,
+        'email': email,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-      Navigator.pushReplacement(
+      if (!mounted) return;
+
+      // Navigate to BasicDetails screen
+      Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => const BasicDetails()),
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       String errorMessage = "Signup failed.";
@@ -55,6 +63,10 @@ class _SignUpState extends State<Signup> {
         errorMessage = e.message.toString();
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An unexpected error occurred: $e')),
+      );
     } finally {
       setState(() => isLoading = false);
     }
@@ -80,60 +92,13 @@ class _SignUpState extends State<Signup> {
               ),
               const SizedBox(height: 10),
 
-              // Username Input
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: usernameController,
-                  decoration: const InputDecoration(
-                    hintText: "Enter username",
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.all(16),
-                  ),
-                ),
-              ),
+              _buildTextField(usernameController, "Enter username"),
               const SizedBox(height: 15),
-
-              // Email Input
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    hintText: "Enter email",
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.all(16),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-              ),
+              _buildTextField(emailController, "Enter email", inputType: TextInputType.emailAddress),
               const SizedBox(height: 15),
-
-              // Password Input
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    hintText: "Enter password",
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.all(16),
-                  ),
-                ),
-              ),
+              _buildTextField(passwordController, "Enter password", isPassword: true),
               const SizedBox(height: 20),
 
-              // Signup Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -153,7 +118,6 @@ class _SignUpState extends State<Signup> {
               ),
               const SizedBox(height: 15),
 
-              // Google Sign-In Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -184,7 +148,6 @@ class _SignUpState extends State<Signup> {
               ),
               const SizedBox(height: 20),
 
-              // Login Link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -214,25 +177,24 @@ class _SignUpState extends State<Signup> {
       ),
     );
   }
-}
 
-// Cache Helper
-class CacheHelper {
-  static late SharedPreferences sharedPreferences;
-
-  static Future<void> cacheInitialization() async {
-    sharedPreferences = await SharedPreferences.getInstance();
-  }
-
-  static Future<bool> setData({required String key, required dynamic value}) async {
-    if (value is int) return await sharedPreferences.setInt(key, value);
-    if (value is String) return await sharedPreferences.setString(key, value);
-    if (value is bool) return await sharedPreferences.setBool(key, value);
-    if (value is double) return await sharedPreferences.setDouble(key, value);
-    return false;
-  }
-
-  static dynamic getData({required String key}) {
-    return sharedPreferences.get(key);
+  Widget _buildTextField(TextEditingController controller, String hintText,
+      {bool isPassword = false, TextInputType inputType = TextInputType.text}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: inputType,
+        decoration: InputDecoration(
+          hintText: hintText,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(16),
+        ),
+      ),
+    );
   }
 }

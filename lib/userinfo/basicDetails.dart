@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:grad/view/home_screen.dart';
 
 class BasicDetails extends StatefulWidget {
   const BasicDetails({super.key});
@@ -13,6 +16,7 @@ class _BasicDetailsState extends State<BasicDetails> {
   String? _selectedTherapy;
   String? _selectedMeasurementUnit;
   String? _selectedWeight;
+  String? _selectedHeight;
   String? _selectedAge;
   String? _selectedGlucoseLevel;
   String? _selectedSugarGoal;
@@ -22,16 +26,17 @@ class _BasicDetailsState extends State<BasicDetails> {
   final List<String> _diabetesTypes = ['Type 1', 'Type 2', 'Gestational', 'Prediabetes'];
   final List<String> _therapies = ['Insulin', 'Oral Medication', 'Lifestyle Changes'];
   final List<String> _measurementUnits = ['mg/dL', 'mmol/L'];
-
   final List<String> _weights = List.generate(121, (index) => '${30 + index} kg');
+  final List<String> _heights = List.generate(101, (index) => '${140 + index} cm');
   final List<String> _ages = List.generate(91, (index) => '${10 + index} years');
   final List<String> _glucoseLevels = List.generate(251, (index) => '${50 + index} mg/dL');
   final List<String> _sugarGoals = List.generate(47, (index) => '${70 + (index * 5)} mg/dL');
   final List<String> _bodyFat = List.generate(46, (index) => '${5 + index}%');
 
-  void _validateAndSubmit() {
+  Future<void> _validateAndSubmit() async {
     if (_selectedGender == null ||
         _selectedWeight == null ||
+        _selectedHeight == null ||
         _selectedAge == null ||
         _selectedDiabetesType == null ||
         _selectedTherapy == null ||
@@ -45,11 +50,46 @@ class _BasicDetailsState extends State<BasicDetails> {
           backgroundColor: Colors.red,
         ),
       );
-    } else {
+      return;
+    }
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      // ✅ Save data with merge = true to preserve previous fields like username/email
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'gender': _selectedGender,
+        'weight': _selectedWeight,
+        'height': _selectedHeight,
+        'age': _selectedAge,
+        'diabetesType': _selectedDiabetesType,
+        'therapy': _selectedTherapy,
+        'measurementUnit': _selectedMeasurementUnit,
+        'sugarGoal': _selectedSugarGoal,
+        'glucoseLevel': _selectedGlucoseLevel,
+        'bodyFat': _selectedBodyFat,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Details saved successfully!', style: TextStyle(fontSize: 16)),
           backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving details: $e', style: const TextStyle(fontSize: 16)),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -86,6 +126,7 @@ class _BasicDetailsState extends State<BasicDetails> {
 
               _buildSelectionTile("Your gender", _selectedGender, _genders),
               _buildSelectionTile("Your weight", _selectedWeight, _weights),
+              _buildSelectionTile("Your height", _selectedHeight, _heights),
               _buildSelectionTile("Your age", _selectedAge, _ages),
               _buildSelectionTile("Your diabetes type", _selectedDiabetesType, _diabetesTypes),
               _buildSelectionTile("Your therapy", _selectedTherapy, _therapies),
@@ -96,7 +137,6 @@ class _BasicDetailsState extends State<BasicDetails> {
 
               const SizedBox(height: 30),
 
-              // Confirm Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -127,6 +167,9 @@ class _BasicDetailsState extends State<BasicDetails> {
               break;
             case "Your weight":
               _selectedWeight = selected;
+              break;
+            case "Your height":
+              _selectedHeight = selected;
               break;
             case "Your age":
               _selectedAge = selected;

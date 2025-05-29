@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
+
 import 'package:grad/gmailVerify.dart';
 import 'package:grad/userinfo/basicDetails.dart';
 import 'package:grad/view/bluetooth_scan.dart';
@@ -32,14 +36,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
+    return GetMaterialApp(
+      title: 'Glooko App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const LoginScreen(), // Set SplashScreen as the initial screen
-      debugShowCheckedModeBanner: false, // Hide debug banner
+      home: const SplashScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -55,24 +59,66 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Navigate to the LoginScreen after 3 seconds
-    Timer(const Duration(seconds: 3), () {
+    checkAuthAndNavigate();
+  }
+
+  Future<void> checkAuthAndNavigate() async {
+    await Future.delayed(const Duration(seconds: 3));
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (!mounted) return;
+
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
+        if (doc.exists && doc.data()!.containsKey('gender')) {
+          // User has filled basic details
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          // User logged in but hasn't filled basic details yet
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const BasicDetails()),
+          );
+        }
+      } catch (e) {
+        // In case of Firestore error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error loading profile: $e")),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
+    } else {
+      // Not logged in
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Center(
-        child: Image.asset(
-          'assets/glookogif.gif',
-          fit: BoxFit.fitHeight,
-          height: double.infinity,//
-          width: 700// Adjust the GIF to fill the screen
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset('assets/glooko.png', height: 200, width: 200),
+            const SizedBox(height: 20),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+            ),
+          ],
         ),
       ),
     );

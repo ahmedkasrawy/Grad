@@ -1,8 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:grad/searchfood.dart';
+import 'package:grad/view/bluetooth_scan.dart';
 import 'package:grad/view/profile.dart';
 import 'bottom app bar.dart';
 import 'glucose_stats.dart';
+import 'insulin_stats.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,25 +17,51 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  String username = 'User'; // Default value until loaded
+  bool isLoading = true;
 
   final List<Map<String, String>> myLevels = [
-    {"name": "Insulin Doses", "image": "assets/insulin.png"},
     {"name": "Carbs Intake", "image": "assets/carbs.png"},
-    {"name": "Blood Pressure", "image": "assets/blood-pressure.png"},
-    {"name": "Heart Rate", "image": "assets/heart-rate.png"},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    loadUsernameFromFirestore();
+  }
+
+  Future<void> loadUsernameFromFirestore() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists && mounted) {
+          setState(() {
+            username = doc.data()?['username'] ?? 'User';
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading username: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
 
   void _onBottomNavTap(int index) {
     setState(() {
       _selectedIndex = index;
     });
 
-    // Handle navigation based on index
     if (index == 0) {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
     } else if (index == 1) {
       Navigator.push(context, MaterialPageRoute(builder: (context) => FoodSearchPage()));
-    } else if (index == 4) {
+    } else if (index == 2) {
       Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
     }
   }
@@ -46,36 +76,58 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🟢 Header Section (Greeting, Centered Logo & Notification)
+              // 🟢 Header Section
               Row(
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           "Hello,",
                           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w400, color: Colors.black87),
                         ),
-                        Text(
-                          "Kiso 👋",
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-                        ),
+                        isLoading
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                username,
+                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
                       ],
                     ),
                   ),
                   Expanded(
                     child: Align(
                       alignment: Alignment.center,
-                      child: Image.asset('assets/glooko.png', width: 120), // Logo Centered
+                      child: Image.asset('assets/glooko.png', width: 120),
                     ),
                   ),
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerRight,
-                      child: IconButton(
-                        icon: const Icon(Icons.notifications_none, size: 28),
-                        onPressed: () {},
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline, size: 28),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => BluetoothScreen()),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.notifications_none, size: 28),
+                            onPressed: () {},
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -83,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 🟢 Glucose Summary Card
+              // 🟢 Glucose Summary
               Container(
                 padding: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
@@ -108,8 +160,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             strokeWidth: 10,
                           ),
                         ),
-                        Column(
-                          children: const [
+                        const Column(
+                          children: [
                             Text("50.0", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                             Text("118/78.0", style: TextStyle(fontSize: 14, color: Colors.grey)),
                           ],
@@ -117,9 +169,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Row(
+                    const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         Icon(Icons.circle, size: 10, color: Colors.green),
                         SizedBox(width: 5),
                         Text("Blood Sugar", style: TextStyle(fontSize: 14, color: Colors.black87)),
@@ -134,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 🟢 Restored Original Buttons Section (Insulin, Carbs, Blood Pressure, Heart Rate)
+              // 🟢 Health Options
               GridView.builder(
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
@@ -149,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   return GestureDetector(
                     onTap: () {
                       if (myLevels[index]["name"] == "Carbs Intake") {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => FoodSearchPage()));
+                        Navigator.push(context, MaterialPageRoute(builder: (context) =>  FoodSearchPage()));
                       }
                     },
                     child: Container(
@@ -180,19 +232,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 🟢 Weekly Glucose Graph Section
-              const Text("Week", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              GlucoseStats(), // Graph component placeholder
+              GlucoseStats(),
+              const SizedBox(height: 20),
+              const InsulinStats(),
             ],
           ),
         ),
       ),
 
-      // 🟢 Reusable Custom Bottom App Bar
-      bottomNavigationBar: CustomBottomAppBar(
-        currentIndex: _selectedIndex,
-      ),
+      bottomNavigationBar: CustomBottomAppBar(currentIndex: _selectedIndex),
     );
   }
 }
